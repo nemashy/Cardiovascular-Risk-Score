@@ -106,107 +106,13 @@ vis_miss(validation)
 ```{r}
 
 cor(train_1[,c(1:8)])
-
 corrplot(train_1)
-
 model1
 
 ```
 
-## Support Vector Machines
 
-```{r}
-
-
-svm_model = svm(TenYearCHD ~. ,
-                data = train_1,
-                type = 'C-classification',
-                kernel = "linear",
-                scale = FALSE,
-                cost = 1)
-svm_model
-
-svm_pred = predict(svm_model, train_1)
-mean(svm_pred == train_1$TenYearCHD)
-
-svm_pred1 = predict(svm_model, validation)
-mean(svm_pred1 == validation$TenYearCHD)
-
-
-svm_model = svm(TenYearCHD ~. ,
-                data = train_1,
-                type = 'C-classification',
-                kernel = "radial",
-                scale = FALSE,
-                cost = 1)
-svm_model
-
-svm_pred = predict(svm_model, train_1)
-mean(svm_pred == train_1$TenYearCHD)
-
-svm_pred1 = predict(svm_model, validation)
-mean(svm_pred1 == validation$TenYearCHD)
-
-set.seed(1)
-tunesvm = tune.svm(TenYearCHD~. ,
-                   data = train_1,
-                   type = 'C-classification',
-                   kernel = c("radial"),
-                   cost=seq(from=0.1, to=1 ,by=0.2))
-
-tunesvm
-bestmodel = tunesvm$best.model
-bestmodel
-
-svm_pred1 = predict(bestmodel, validation)
-mean(svm_pred1 == validation$TenYearCHD)
-
-
-
-```
-
-## Neural Networks
-
-```{r}
-
-set.seed(1)
-
-m <- model.matrix( ~ age +  cigsPerDay + totChol +  sysBP +  diaBP +   BMI   +  heartRate + glucose + male  + education +  currentSmoker +  BPMeds +  prevalentStroke + prevalentHyp + diabetes + TenYearCHD, data = train_1)
-
-
-neuralnetmodel = neuralnet(TenYearCHD1 ~ age +  cigsPerDay + totChol +  sysBP +  diaBP +   BMI   +  heartRate + glucose ,
-                           data = m,
-                           err.fct = "ce",
-                           linear.output = FALSE, 
-                           act.fct = "logistic",
-                           hidden = c(2))
-
-folds <- createFolds(train_1$TenYearCHD, k = 10)
-#results is a vector that will contain the accuracy for each of the network trainings and testing
-results <- c()
-for (fld in folds){
-  #train the network
-  set.seed(1)
-  nn <- neuralnet(TenYearCHD~. ,
-                           data = train_1,
-                           hidden = c(2), 
-                           err.fct = "ce", act.fct = "logistic",
-                           linear.output = FALSE, stepmax = 1000000)
-  
-  #get the classifications from the network
-  classes <- predict(nn, train_1[fld,])
-  maxprobability <- apply(classes, 1, which.max) 
-  valid.predict.class <- c('no', 'yes')[maxprobability] 
-  
-  results <- c(results, valid.predict.class== train_[fld,"Species"])
-} 
-
-results
-
-
-
-
-```
+## Variable selection
 
 ```{r}
 
@@ -239,6 +145,7 @@ plot(cv)
 
 
 ```
+
 The general logistic regression model shows that age, cigsPerDay, sysBP, glucose and gender(male) are significant variables.
 
 The Lasso regression model uses age, cigsPerDay, sysBP, glucose, gender(male), education, prevalentStroke, prevalentHyp and diabetes as the variables.
@@ -251,6 +158,152 @@ All the three models use age, cigsPerDay, sysBP, glucose, gender(male)
 
 
 
+
+## Support Vector Machines
+
+```{r}
+
+# 1 linear
+svm_model = svm(TenYearCHD ~. ,
+                data = train_1,
+                type = 'C-classification',
+                kernel = "linear",
+                scale = FALSE,
+                cost = 1)
+svm_model
+
+svm_pred = predict(svm_model, train_1)
+mean(svm_pred == train_1$TenYearCHD)
+
+svm_pred1 = predict(svm_model, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+
+# 2 radial
+svm_model = svm(TenYearCHD ~. ,
+                data = train_1,
+                type = 'C-classification',
+                kernel = "radial",
+                scale = FALSE,
+                cost = 1)
+svm_model
+
+svm_pred = predict(svm_model, train_1)
+mean(svm_pred == train_1$TenYearCHD)
+
+svm_pred1 = predict(svm_model, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+
+
+# 3 polynomial
+svm_model = svm(TenYearCHD ~. ,
+                data = train_1,
+                type = 'C-classification',
+                kernel = "polynomial",
+                scale = FALSE,
+                cost = 1)
+svm_model
+
+svm_pred = predict(svm_model, train_1)
+mean(svm_pred == train_1$TenYearCHD)
+
+svm_pred1 = predict(svm_model, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+
+
+# 4 sigmoid
+svm_model = svm(TenYearCHD ~. ,
+                data = train_1,
+                type = 'C-classification',
+                kernel = "sigmoid",
+                scale = FALSE,
+                cost = 1)
+svm_model
+
+svm_pred = predict(svm_model, train_1)
+mean(svm_pred == train_1$TenYearCHD)
+
+svm_pred1 = predict(svm_model, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+
+
+
+## Not much change when you change kernel function
+
+set.seed(1)
+tunesvm = tune.svm(TenYearCHD~. ,
+                   data = train_1,
+                   type = 'C-classification',
+                   kernel = c("radial"),
+                   cost=seq(from=0.1, to=1 ,by=0.2))
+
+tunesvm
+bestmodel_all = tunesvm$best.model
+save(bestmodel_all, file = "bestmodel_all.rda")
+bestmodel_all
+
+svm_pred1 = predict(bestmodel_all, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+# 0.8431034
+
+## Lasso
+set.seed(1)
+tunesvm = tune.svm(TenYearCHD~. ,
+                   data = train_1[,c(1,2,4,8,9,10,13:16)],
+                   type = 'C-classification',
+                   kernel = c("radial"),
+                   cost=seq(from=0.1, to=1 ,by=0.2))
+
+tunesvm
+bestmodel_lasso = tunesvm$best.model
+bestmodel_lasso
+
+save(bestmodel_lasso, file = "bestmodel_lasso.rda")
+
+svm_pred1 = predict(bestmodel_lasso, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+# 0.8431034
+
+## Log reg
+set.seed(1)
+tunesvm = tune.svm(TenYearCHD~. ,
+                   data = train_1[,c(1,2,4,8,9,10,16)],
+                   type = 'C-classification',
+                   kernel = c("radial"),
+                   cost=seq(from=0.1, to=1 ,by=0.2))
+
+tunesvm
+bestmodel_log_reg = tunesvm$best.model
+bestmodel_log_reg
+save(bestmodel_log_reg, file = "bestmodel_log_reg.rda")
+
+svm_pred1 = predict(bestmodel_log_reg, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+# 0.8431034
+
+## Elastic net
+set.seed(1)
+tunesvm = tune.svm(TenYearCHD~. ,
+                   data = train_1[,c(1,2,4,5,7,8,9,10, 13:16)],
+                   type = 'C-classification',
+                   kernel = c("radial"),
+                   cost=seq(from=0.1, to=1 ,by=0.2))
+
+tunesvm
+bestmodel_elastic = tunesvm$best.model
+bestmodel_elastic
+save(bestmodel_elastic, file = "bestmodel_elastic.rda")
+
+svm_pred1 = predict(bestmodel_elastic, validation)
+mean(svm_pred1 == validation$TenYearCHD)
+#  0.8396552
+
+
+```
+
+
+
+
+
 ```{r}
 # pca <- PCA(train_1, ncp=5, graph=T)
 # dimdesc(pca)
@@ -259,22 +312,58 @@ All the three models use age, cigsPerDay, sysBP, glucose, gender(male)
 Look at correlation matrix
 Use PCA and other variable selection techniques
 
+Testing begins with a single layer, then add hidden layers to check if the model is improved in any way
+
 ```{r}
+
+# The general logistic regression model shows that age, cigsPerDay, sysBP, glucose and gender(male) are significant variables.
+# 
+# The Lasso regression model uses age, cigsPerDay, sysBP, glucose, gender(male), education, prevalentStroke, prevalentHyp and diabetes as the variables.
+# 
+# Elastic net model uses age, cigsPerDay, SysBP, diaBP, heartRate, glucose, male, education, PrevalentStroke, prevalentHyp, diabetes
+# 
 
 #localH2O = h2o.init(ip = "localhost", port = 54321, startH2O = TRUE,min_mem_size = "1g")
 localH2O = h2o.init()
 train.h2o <- as.h2o(train_1)
 test.h2o <- as.h2o(validation)
 
-hidden_opt <- list(c(3), c(2), c(1))
+hidden_opt <- list(c(2), c(3), c(4), c(5), c(3,3), c(5,5))
 act <- c("Tanh", "Rectifier" )
 l1_opt <- c(1e-5, 1e-7)
 hyper_params <- list(hidden = hidden_opt, l1 = l1_opt, activation = act)
 
+
+## Lasso model
+set.seed(1)
 model_grid <- h2o.grid(
   "deeplearning",
   hyper_params = hyper_params,
-  x = c(1,2,4,8,9,10, 13:15),
+  x = c(1,2,4,8,9,10,13:15),
+  y = 16,
+  seed = 1, 
+  reproducible = TRUE,
+  distribution = "AUTO",
+  balance_classes = TRUE,
+  training_frame = train.h2o,
+  validation_frame = test.h2o, 
+  nfolds=10)
+
+model_grid
+model_lasso = h2o.getModel(model_grid@model_ids[[1]])
+save(model_lasso, file = "model_lasso.rda")
+
+c <- h2o.predict(model_lasso , test.h2o)
+yhat = as.factor(as.matrix(c$predict))
+confusionMatrix(yhat, validation$TenYearCHD)
+# 0.7966 
+
+## logistic regression model
+set.seed(1)
+model_grid <- h2o.grid(
+  "deeplearning",
+  hyper_params = hyper_params,
+  x = c(1,2,4,8,9,10),
   y = 16,
   seed = 1, 
   reproducible = TRUE,
@@ -284,15 +373,35 @@ model_grid <- h2o.grid(
   validation_frame = test.h2o, nfolds=10)
 
 model_grid
-model1 = h2o.getModel(model_grid@model_ids[[1]])
+model_glm = h2o.getModel(model_grid@model_ids[[1]])
+save(model_glm, file = "model_glm.rda")
 
-c <- h2o.predict(model1 , test.h2o)
+c <- h2o.predict(model_glm , test.h2o)
 yhat = as.factor(as.matrix(c$predict))
 confusionMatrix(yhat, validation$TenYearCHD)
+# 0.8103
 
+## elastic net model
+set.seed(1)
+model_grid <- h2o.grid(
+  "deeplearning",
+  hyper_params = hyper_params,
+  x = c(1,2,4,5,7,8,9,10, 13:15),
+  y = 16,
+  seed = 1, 
+  reproducible = TRUE,
+  distribution = "AUTO",
+  balance_classes = TRUE,
+  training_frame = train.h2o,
+  validation_frame = test.h2o, nfolds=10)
 
-## Selecting variables can help in deep learning
+model_grid
+model_elastic = h2o.getModel(model_grid@model_ids[[1]])
+save(model_elastic, file = "model_elastic.rda")
 
-
+c <- h2o.predict(model_elastic , test.h2o)
+yhat = as.factor(as.matrix(c$predict))
+confusionMatrix(yhat, validation$TenYearCHD)
+# 0.7638
 
 ```
