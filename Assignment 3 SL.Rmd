@@ -10,7 +10,7 @@ output: pdf_document
 
 knitr::opts_chunk$set(echo = TRUE)
 if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
-if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
+if(!require(FactoMineR)) install.packages("FactoMineR", repos = "http://cran.us.r-project.org")
 if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
 if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
 if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
@@ -27,7 +27,6 @@ if(!require(rAverage)) install.packages("rAverage", repos = "http://cran.us.r-pr
 if(!require(caTools)) install.packages("caTools", repos = "http://cran.us.r-project.org")
 if(!require(glmnet)) install.packages("glmnet", repos = "http://cran.us.r-project.org")
 library(knitr)
-library(cowplot)
 if(!require(cowplot)) install.packages("cowplot", repos = "http://cran.us.r-project.org")
 if(!require(ROCR)) install.packages("ROCR", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
@@ -55,7 +54,7 @@ framingham.assignment$prevalentHyp <- as.factor(framingham.assignment$prevalentH
 framingham.assignment$diabetes <- as.factor(framingham.assignment$diabetes)
 framingham.assignment$traintest <- as.factor(framingham.assignment$traintest)
 framingham.assignment$TenYearCHD <- as.factor(framingham.assignment$TenYearCHD)
-#framingham.assignment$ <- as.factor(framingham.assignment$ )
+# framingham.assignment$ <- as.factor(framingham.assignment$ )
 
 str(framingham.assignment)
 
@@ -80,13 +79,37 @@ vis_miss(train)
 
 ```
 
+
+
 ```{r}
 set.seed(1)
-samp <- createDataPartition(train$TenYearCHD, times = 1,
-  p = 0.8)
+samp <- createDataPartition(train$TenYearCHD, times = 1, p = 0.8)
 
 train_1 <- train[samp[["Resample1"]],]
 validation <- train[-samp[["Resample1"]],]
+
+vis_miss(train_1)
+vis_miss(validation)
+
+
+#
+train_1 <- train_1 %>% drop_na()
+validation <- validation %>% drop_na()
+
+
+vis_miss(train_1)
+vis_miss(validation)
+
+
+```
+
+```{r}
+
+cor(train_1[,c(1:8)])
+
+corrplot(train_1)
+
+model1
 
 ```
 
@@ -185,29 +208,78 @@ results
 
 ```
 
+```{r}
+
+mod <- glm(TenYearCHD~.,data = train_1, family = binomial)
+s1 <- summary(mod)
+s1
+
+
+
+train_a <- na.omit(train_1)
+X <- data.matrix(train_a[,c(-16)])
+Y <- data.matrix(train_a[16])
+
+set.seed(1)
+mod_a <- glmnet(X, Y, alpha = 1, nfolds = 10, type.measure = 'class', family = 'binomial')
+set.seed(1)
+cv <- cv.glmnet(X, Y, alpha = 1, nfolds = 10, type.measure = 'class', standardize = T, family = 'binomial')
+plot(cv)
+
+c1 <- coef(mod_a, s=cv$lambda.1se)
+c2 <- coef(mod_a, s=cv$lambda.min)
+
+mod_b <- glmnet(X, Y, alpha = 0.5, nfolds = 10, type.measure = 'class', family = 'binomial')
+set.seed(1)
+cv <- cv.glmnet(X, Y, alpha = 0.5, nfolds = 10, type.measure = 'class', standardize = T, family = 'binomial')
+plot(cv)
+
+(c3 <- coef(mod_b, s=cv$lambda.1se))
+(c4 <- coef(mod_b, s=cv$lambda.min))
+
+
+```
+The general logistic regression model shows that age, cigsPerDay, sysBP, glucose and gender(male) are significant variables.
+
+The Lasso regression model uses age, cigsPerDay, sysBP, glucose, gender(male), education, prevalentStroke, prevalentHyp and diabetes as the variables.
+
+Elastic net model uses age, cigsPerDay, SysBP, diaBP, heartRate, glucose, male, education, PrevalentStroke, prevalentHyp, diabetes
+
+## Facts 
+
+All the three models use age, cigsPerDay, sysBP, glucose, gender(male)
+
+
+
+```{r}
+# pca <- PCA(train_1, ncp=5, graph=T)
+# dimdesc(pca)
+```
+
+Look at correlation matrix
+Use PCA and other variable selection techniques
 
 ```{r}
 
-localH2O = h2o.init(ip = "localhost", port = 54321, startH2O = TRUE,min_mem_size = "1g")
+#localH2O = h2o.init(ip = "localhost", port = 54321, startH2O = TRUE,min_mem_size = "1g")
 localH2O = h2o.init()
 train.h2o <- as.h2o(train_1)
 test.h2o <- as.h2o(validation)
 
-hidden_opt <- list(c(1), c(2), c(3), c(2,1),c(2,2),c(2,3), c(3,1),c(3,2),c(3,3))
-
+hidden_opt <- list(c(3), c(2), c(1))
+act <- c("Tanh", "Rectifier" )
 l1_opt <- c(1e-5, 1e-7)
-hyper_params <- list(hidden = hidden_opt, l1 = l1_opt)
+hyper_params <- list(hidden = hidden_opt, l1 = l1_opt, activation = act)
 
 model_grid <- h2o.grid(
   "deeplearning",
   hyper_params = hyper_params,
-  x = 1:15,
+  x = c(1,2,4,8,9,10, 13:15),
   y = 16,
   seed = 1, 
   reproducible = TRUE,
-  activation = "Tanh", 
+  distribution = "AUTO",
   balance_classes = TRUE,
-  distribution = "multinomial",
   training_frame = train.h2o,
   validation_frame = test.h2o, nfolds=10)
 
